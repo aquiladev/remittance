@@ -18,6 +18,10 @@ contract Remittance is Ownable, Pausable, Killable {
     constructor() public Pausable(false) {
     }
 
+    function () external {
+        revert("Not supported");
+    }
+
     function remit(bytes32 key) public payable whenRunning whenAlive {
         require(key != 0, "Key cannot be zero");
         require(msg.value > 0, "Value should be greater 0 Wei");
