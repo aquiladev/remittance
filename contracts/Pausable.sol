@@ -1,43 +1,38 @@
 pragma solidity ^0.5.2;
 
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import "./Ownable.sol";
 
 contract Pausable is Ownable {
-    event Paused(address account);
-    event Unpaused(address account);
+    event LogPaused(address account);
+    event LogUnpaused(address account);
 
     bool private _paused;
 
-    modifier whenNotPaused() {
+    modifier whenRunning() {
         require(!_paused, "Paused");
         _;
     }
 
     modifier whenPaused() {
-        require(_paused, "Not paused");
+        require(_paused, "Running");
         _;
     }
 
-    constructor () internal {
-        _paused = false;
+    constructor (bool paused) internal {
+        _paused = paused;
     }
 
-    function paused() public view returns (bool) {
+    function isPaused() public view returns (bool) {
         return _paused;
     }
 
-    function pause() public onlyOwner whenNotPaused {
+    function pause() public onlyOwner whenRunning {
         _paused = true;
-        emit Paused(msg.sender);
+        emit LogPaused(msg.sender);
     }
 
     function unpause() public onlyOwner whenPaused {
         _paused = false;
-        emit Unpaused(msg.sender);
-    }
-
-    function kill() public onlyOwner {
-        address payable owner = address(uint160(owner()));
-        selfdestruct(owner);
+        emit LogUnpaused(msg.sender);
     }
 }

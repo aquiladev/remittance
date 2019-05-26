@@ -1,33 +1,37 @@
 pragma solidity ^0.5.2;
 
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
+import "./Ownable.sol";
 import "./Pausable.sol";
+import "./Killable.sol";
 
-contract Remittance is Ownable, Pausable {
+contract Remittance is Ownable, Pausable, Killable {
     using SafeMath for uint256;
 
-    event Remitted(address indexed sender, uint256 amount);
-    event Claimed(address indexed who, uint amount);
+    event LogRemitted(address indexed remitter, bytes32 puzzle, uint256 amount);
+    event LogClaimed(address indexed who, uint amount);
 
     mapping (address => uint) public balances;
-    mapping (address => mapping (uint256 => uint256)) private _allowed;
+    mapping (address => mapping (bytes32 => uint256)) private _allowed;
 
-    function remit(uint256 key) public payable whenNotPaused {
+    constructor() public Pausable(false) {
+    }
+
+    function remit(bytes32 key) public payable whenRunning whenAlive {
         require(key != 0, "Key cannot be zero");
         require(msg.value > 0, "Value should be greater 0 Wei");
 
         balances[msg.sender] = balances[msg.sender].add(msg.value);
-        _allowed[msg.sender][key].add(msg.value);
+        _allowed[msg.sender][key] = _allowed[msg.sender][key].add(msg.value);
 
-        emit Remitted(msg.sender, msg.value);
+        emit LogRemitted(msg.sender, key, msg.value);
     }
 
-    function claim(address remitter, uint256 key1, uint256 key2) public whenNotPaused {
+    function claim(address remitter, bytes32 key1, bytes32 key2) public whenRunning {
         require(remitter != address(0), "Remitter cannot be empty");
 
-        uint256 key = keccak256(abi.encodePacked(msg.sender, key1, key2));
+        bytes32 key = keccak256(abi.encodePacked(msg.sender, key1, key2));
         uint256 amount = _allowed[remitter][key];
         require(amount > 0, "Amount cannot be zero");
 
@@ -36,8 +40,8 @@ contract Remittance is Ownable, Pausable {
 
         balances[remitter] = balances[remitter].sub(amount);
         _allowed[remitter][key] = 0;
-        msg.sender.transfer(amount);
 
-        emit Claimed(msg.sender, amount);
+        emit LogClaimed(msg.sender, amount);
+        msg.sender.transfer(amount);
     }
 }
