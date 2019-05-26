@@ -18,7 +18,7 @@ contract Remittance is Ownable, Pausable, Killable {
     constructor() public Pausable(false) {
     }
 
-    function () external {
+    function () external payable {
         revert("Not supported");
     }
 

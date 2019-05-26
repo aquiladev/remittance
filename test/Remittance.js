@@ -11,7 +11,7 @@ contract('Remittance', accounts => {
 
     describe('fallback', function () {
         it('reverts when send value', async () => {
-            await expectRevert.unspecified(send.ether(accounts[4], remittance.address, new BN('1')));
+            await expectRevert(send.ether(accounts[4], remittance.address, new BN('1')), 'Not supported');
         });
     });
 
