@@ -7,7 +7,7 @@ import "./Pausable.sol";
 contract Remittance is Pausable {
     using SafeMath for uint256;
 
-    event LogRemitted(address indexed remitter, bytes32 puzzle, uint256 amount);
+    event LogRemitted(address indexed sender, bytes32 puzzle, uint256 amount);
     event LogClaimed(address indexed who, uint amount);
 
     mapping (address => uint) public balances;
@@ -17,7 +17,11 @@ contract Remittance is Pausable {
         revert("Not supported");
     }
 
-    function remit(bytes32 key) public payable whenRunning whenAlive {
+    function generateSecret(address recipient, bytes32 key) public view onlyOwner returns(bytes32) {
+        return _getSecret(recipient, key);
+    }
+
+    function createRemittance(bytes32 key) public payable whenRunning whenAlive {
         require(key != 0, "Key cannot be zero");
         require(msg.value > 0, "Value should be greater 0 Wei");
 
@@ -27,20 +31,24 @@ contract Remittance is Pausable {
         emit LogRemitted(msg.sender, key, msg.value);
     }
 
-    function claim(address remitter, bytes32 key1, bytes32 key2) public whenRunning {
-        require(remitter != address(0), "Remitter cannot be empty");
+    function claim(address sender, bytes32 key) public whenRunning {
+        require(sender != address(0), "Sender cannot be empty");
 
-        bytes32 key = keccak256(abi.encodePacked(msg.sender, key1, key2));
-        uint256 amount = _allowed[remitter][key];
+        bytes32 key = _getSecret(msg.sender, key);
+        uint256 amount = _allowed[sender][key];
         require(amount > 0, "Amount cannot be zero");
 
-        uint256 balance = balances[remitter];
+        uint256 balance = balances[sender];
         require(balance >= amount, "Not enough balance");
 
-        balances[remitter] = balances[remitter].sub(amount);
-        _allowed[remitter][key] = 0;
+        balances[sender] = balances[sender].sub(amount);
+        _allowed[sender][key] = 0;
 
         emit LogClaimed(msg.sender, amount);
         msg.sender.transfer(amount);
+    }
+
+    function _getSecret(address account, bytes32 key) private pure returns(bytes32) {
+        return keccak256(abi.encodePacked(account, key));
     }
 }

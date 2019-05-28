@@ -3,9 +3,9 @@ pragma solidity ^0.5.2;
 import "./Ownable.sol";
 
 contract Pausable is Ownable {
-    event LogPaused(address account);
-    event LogResumed(address account);
-    event LogKilled(address account);
+    event LogPaused(address indexed account);
+    event LogResumed(address indexed account);
+    event LogKilled(address indexed account);
 
     bool private _paused;
     bool private _killed;
