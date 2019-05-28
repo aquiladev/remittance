@@ -4,9 +4,11 @@ import "./Ownable.sol";
 
 contract Pausable is Ownable {
     event LogPaused(address account);
-    event LogUnpaused(address account);
+    event LogResumed(address account);
+    event LogKilled(address account);
 
     bool private _paused;
+    bool private _killed;
 
     modifier whenRunning() {
         require(!_paused, "Paused");
@@ -18,8 +20,9 @@ contract Pausable is Ownable {
         _;
     }
 
-    constructor (bool paused) internal {
-        _paused = paused;
+    modifier whenAlive() {
+        require(!_killed, "Killed");
+        _;
     }
 
     function isPaused() public view returns (bool) {
@@ -31,8 +34,13 @@ contract Pausable is Ownable {
         emit LogPaused(msg.sender);
     }
 
-    function unpause() public onlyOwner whenPaused {
+    function resume() public onlyOwner whenPaused whenAlive {
         _paused = false;
-        emit LogUnpaused(msg.sender);
+        emit LogResumed(msg.sender);
+    }
+
+    function kill() public onlyOwner whenPaused whenAlive {
+        _killed = true;
+        emit LogKilled(msg.sender);
     }
 }

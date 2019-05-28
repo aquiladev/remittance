@@ -11,7 +11,16 @@ contract('Remittance', accounts => {
 
     describe('fallback', function () {
         it('reverts when send value', async () => {
-            await expectRevert(send.ether(accounts[4], remittance.address, new BN('1')), 'Not supported');
+            await expectRevert.unspecified(send.ether(accounts[4], remittance.address, new BN('1')));
+        });
+    });
+
+    describe('resume', function () {
+        it('reverts when killed', async () => {
+            remittance.pause();
+            remittance.kill();
+
+            await expectRevert(remittance.resume(), 'Killed');
         });
     });
 
@@ -32,12 +41,6 @@ contract('Remittance', accounts => {
             remittance.pause();
 
             await expectRevert(remittance.remit('0x1', { value: 1 }), 'Paused');
-        });
-
-        it('reverts when killed', async () => {
-            remittance.kill();
-
-            await expectRevert(remittance.remit('0x1', { value: 1 }), 'Killed');
         });
 
         it('should remit', async () => {

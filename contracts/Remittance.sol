@@ -2,11 +2,9 @@ pragma solidity ^0.5.2;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-import "./Ownable.sol";
 import "./Pausable.sol";
-import "./Killable.sol";
 
-contract Remittance is Ownable, Pausable, Killable {
+contract Remittance is Pausable {
     using SafeMath for uint256;
 
     event LogRemitted(address indexed remitter, bytes32 puzzle, uint256 amount);
@@ -14,9 +12,6 @@ contract Remittance is Ownable, Pausable, Killable {
 
     mapping (address => uint) public balances;
     mapping (address => mapping (bytes32 => uint256)) private _allowed;
-
-    constructor() public Pausable(false) {
-    }
 
     function () external payable {
         revert("Not supported");
