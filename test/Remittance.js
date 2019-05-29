@@ -5,7 +5,7 @@ const Remittance = artifacts.require('./Remittance.sol');
 contract('Remittance', accounts => {
     let remittance;
     beforeEach(async () => {
-        remittance = await Remittance.new();
+        remittance = await Remittance.new(false);
     });
 
     describe('fallback', function () {
@@ -45,7 +45,6 @@ contract('Remittance', accounts => {
         it('should remit', async () => {
             const { logs } = await remittance.createRemittance('0x21', { value: 1, from: accounts[0] });
 
-            (await remittance.balances(accounts[0])).should.be.bignumber.equal('1');
             expectEvent.inLogs(logs, 'LogRemitted', {
                 sender: accounts[0],
                 puzzle: web3.utils.padRight('0x21', 64),
@@ -64,6 +63,36 @@ contract('Remittance', accounts => {
             const delta = balanceSender.sub(newBalanceSender).sub(gasUsed);
 
             delta.should.be.bignumber.equal('15');
+        });
+    })
+
+    describe('cancelRemittance', function () {
+        it('reverts when key is zero', async () => {
+            await expectRevert(remittance.cancelRemittance('0x0'), 'Key cannot be zero');
+        });
+
+        it('reverts when key is empty', async () => {
+            await expectRevert(remittance.cancelRemittance('0x'), 'Key cannot be zero');
+        });
+
+        it('reverts when paused', async () => {
+            remittance.pause();
+
+            await expectRevert(remittance.cancelRemittance('0x1'), 'Paused');
+        });
+
+        it('should cancel', async () => {
+            const key = 'hi there';
+            const secret = await remittance.generateSecret(accounts[1], web3.utils.fromAscii(key));
+            await remittance.createRemittance(secret, { value: 10, from: accounts[0] });
+
+            const { logs } = await remittance.cancelRemittance(secret, { from: accounts[0] });
+
+            expectEvent.inLogs(logs, 'LogCanceled', {
+                sender: accounts[0],
+                puzzle: secret,
+                amount: new BN('10')
+            });
         });
     })
 
@@ -92,7 +121,6 @@ contract('Remittance', accounts => {
                 web3.utils.toHex(key),
                 { from: accounts[1] });
 
-            (await remittance.balances(accounts[0])).should.be.bignumber.equal('0');
             expectEvent.inLogs(logs, 'LogClaimed', {
                 who: accounts[1],
                 amount: new BN('10')

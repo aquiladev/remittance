@@ -25,11 +25,15 @@ contract Pausable is Ownable {
         _;
     }
 
+    constructor (bool paused) internal {
+        _paused = paused;
+    }
+
     function isPaused() public view returns (bool) {
         return _paused;
     }
 
-    function pause() public onlyOwner whenRunning {
+    function pause() public onlyOwner whenRunning whenAlive {
         _paused = true;
         emit LogPaused(msg.sender);
     }
