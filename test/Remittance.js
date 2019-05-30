@@ -1,4 +1,4 @@
-const { BN, expectRevert, constants, send, balance, expectEvent } = require('openzeppelin-test-helpers');
+const { BN, expectRevert, constants, send, expectEvent } = require('openzeppelin-test-helpers');
 
 const Remittance = artifacts.require('./Remittance.sol');
 

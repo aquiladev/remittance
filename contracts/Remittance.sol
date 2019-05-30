@@ -21,44 +21,40 @@ contract Remittance is Pausable {
         revert("Not supported");
     }
 
-    function generateSecret(address recipient, bytes32 key) public view onlyOwner returns(bytes32) {
-        return _getSecret(recipient, key);
+    function generateSecret(address account, bytes32 plainKey) public view returns(bytes32) {
+        return keccak256(abi.encodePacked(address(this), account, plainKey));
     }
 
-    function createRemittance(bytes32 key) public payable whenRunning whenAlive {
-        require(key != 0, "Key cannot be zero");
+    function createRemittance(bytes32 hashedKey) public payable whenRunning whenAlive {
+        require(hashedKey != 0, "Key cannot be zero");
         require(msg.value > 0, "Value should be greater 0 Wei");
 
-        _allowed[msg.sender][key] = _allowed[msg.sender][key].add(msg.value);
+        _allowed[msg.sender][hashedKey] = _allowed[msg.sender][hashedKey].add(msg.value);
 
-        emit LogRemitted(msg.sender, key, msg.value);
+        emit LogRemitted(msg.sender, hashedKey, msg.value);
     }
 
-    function cancelRemittance(bytes32 key) public whenRunning whenAlive {
-        require(key != 0, "Key cannot be zero");
+    function cancelRemittance(bytes32 hashedKey) public whenRunning whenAlive {
+        require(hashedKey != 0, "Key cannot be zero");
 
-        uint256 amount = _allowed[msg.sender][key];
+        uint256 amount = _allowed[msg.sender][hashedKey];
         require(amount > 0, "Amount cannot be zero");
-        _allowed[msg.sender][key] = 0;
+        _allowed[msg.sender][hashedKey] = 0;
 
-        emit LogCanceled(msg.sender, key, amount);
+        emit LogCanceled(msg.sender, hashedKey, amount);
         msg.sender.transfer(amount);
     }
 
-    function claim(address sender, bytes32 key) public whenRunning {
+    function claim(address sender, bytes32 plainKey) public whenRunning {
         require(sender != address(0), "Sender cannot be empty");
 
-        bytes32 secret = _getSecret(msg.sender, key);
-        uint256 amount = _allowed[sender][secret];
+        bytes32 hashedKey = generateSecret(msg.sender, plainKey);
+        uint256 amount = _allowed[sender][hashedKey];
         require(amount > 0, "Amount cannot be zero");
 
-        _allowed[sender][secret] = 0;
+        _allowed[sender][hashedKey] = 0;
 
         emit LogClaimed(msg.sender, amount);
         msg.sender.transfer(amount);
-    }
-
-    function _getSecret(address account, bytes32 key) private view returns(bytes32) {
-        return keccak256(abi.encodePacked(address(this), account, key));
     }
 }
