@@ -5,7 +5,7 @@ const Remittance = artifacts.require('./Remittance.sol');
 contract('Remittance', accounts => {
     let remittance;
     beforeEach(async () => {
-        remittance = await Remittance.new(false);
+        remittance = await Remittance.new(false, 100);
     });
 
     describe('fallback', function () {
@@ -25,25 +25,25 @@ contract('Remittance', accounts => {
 
     describe('createRemittance', function () {
         it('reverts when key is zero', async () => {
-            await expectRevert(remittance.createRemittance('0x0'), 'Key cannot be zero');
+            await expectRevert(remittance.createRemittance('0x0', 1000), 'Key cannot be zero');
         });
 
         it('reverts when key is empty', async () => {
-            await expectRevert(remittance.createRemittance('0x'), 'Key cannot be zero');
+            await expectRevert(remittance.createRemittance('0x', 1000), 'Key cannot be zero');
         });
 
         it('reverts when value is zero', async () => {
-            await expectRevert(remittance.createRemittance('0x1', { value: 0 }), 'Value should be greater 0 Wei');
+            await expectRevert(remittance.createRemittance('0x1', 1000, { value: 0 }), 'Value should be greater 0 Wei');
         });
 
         it('reverts when paused', async () => {
             remittance.pause();
 
-            await expectRevert(remittance.createRemittance('0x1', { value: 1 }), 'Paused');
+            await expectRevert(remittance.createRemittance('0x1', 1000, { value: 1 }), 'Paused');
         });
 
         it('should remit', async () => {
-            const { logs } = await remittance.createRemittance('0x21', { value: 1, from: accounts[0] });
+            const { logs } = await remittance.createRemittance('0x21', 1000, { value: 1, from: accounts[0] });
 
             expectEvent.inLogs(logs, 'LogRemitted', {
                 sender: accounts[0],
@@ -56,7 +56,7 @@ contract('Remittance', accounts => {
             const balanceSender = new BN(await web3.eth.getBalance(accounts[0]));
             const gasPrice = new BN('20000000');
 
-            const result = await remittance.createRemittance('0x12e', { value: 15, from: accounts[0], gasPrice });
+            const result = await remittance.createRemittance('0x12e', 1000, { value: 15, from: accounts[0], gasPrice });
 
             const newBalanceSender = new BN(await web3.eth.getBalance(accounts[0]));
             const gasUsed = new BN(gasPrice).mul(new BN(result.receipt.gasUsed));
@@ -83,8 +83,9 @@ contract('Remittance', accounts => {
 
         it('should cancel', async () => {
             const key = 'hi there';
+            remittance = await Remittance.new(false, 0);
             const secret = await remittance.generateSecret(accounts[1], web3.utils.fromAscii(key));
-            await remittance.createRemittance(secret, { value: 10, from: accounts[0] });
+            await remittance.createRemittance(secret, 0, { value: 10, from: accounts[0] });
 
             const { logs } = await remittance.cancelRemittance(secret, { from: accounts[0] });
 
@@ -101,10 +102,6 @@ contract('Remittance', accounts => {
             await expectRevert(remittance.claim(constants.ZERO_ADDRESS, '0x'), 'Sender cannot be empty');
         });
 
-        it('reverts when nothing to claim', async () => {
-            await expectRevert(remittance.claim(accounts[1], '0x'), 'Amount cannot be zero');
-        });
-
         it('reverts when paused', async () => {
             remittance.pause();
 
@@ -114,7 +111,7 @@ contract('Remittance', accounts => {
         it('should claim', async () => {
             const key = 'hi there';
             const secret = await remittance.generateSecret(accounts[1], web3.utils.fromAscii(key));
-            await remittance.createRemittance(secret, { value: 10, from: accounts[0] });
+            await remittance.createRemittance(secret, 100, { value: 10, from: accounts[0] });
 
             const { logs } = await remittance.claim(
                 accounts[0],
@@ -122,7 +119,7 @@ contract('Remittance', accounts => {
                 { from: accounts[1] });
 
             expectEvent.inLogs(logs, 'LogClaimed', {
-                who: accounts[1],
+                sender: accounts[1],
                 amount: new BN('10')
             });
         });
@@ -130,7 +127,7 @@ contract('Remittance', accounts => {
         it('reverts when cliam twice', async () => {
             const key = 'Hi there';
             const secret = await remittance.generateSecret(accounts[2], web3.utils.fromAscii(key));
-            await remittance.createRemittance(secret, { value: 10, from: accounts[0] });
+            await remittance.createRemittance(secret, 100, { value: 10, from: accounts[0] });
 
             await remittance.claim(
                 accounts[0],

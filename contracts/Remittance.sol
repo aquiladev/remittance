@@ -7,14 +7,21 @@ import "./Pausable.sol";
 contract Remittance is Pausable {
     using SafeMath for uint256;
 
+    struct Remittance {
+        address sender;
+        uint256 amount;
+        uint256 expiration;
+    }
+
     event LogRemitted(address indexed sender, bytes32 puzzle, uint256 amount);
     event LogCanceled(address indexed sender, bytes32 puzzle, uint256 amount);
-    event LogClaimed(address indexed who, uint amount);
+    event LogClaimed(address indexed sender, uint amount);
 
-    /// The mapping contains allowed amount for recipient and puzzles
-    mapping (address => mapping (bytes32 => uint256)) private _allowed;
+    uint256 _minLifetime;
+    mapping (bytes32 => Remittance) public _remittances;
 
-    constructor (bool paused) public Pausable(paused) {
+    constructor (bool paused, uint256 minLifetime) public Pausable(paused) {
+        _minLifetime = minLifetime;
     }
 
     function () external payable {
@@ -25,21 +32,28 @@ contract Remittance is Pausable {
         return keccak256(abi.encodePacked(address(this), account, plainKey));
     }
 
-    function createRemittance(bytes32 hashedKey) public payable whenRunning whenAlive {
+    function createRemittance(bytes32 hashedKey, uint256 lifetime) public payable whenRunning {
         require(hashedKey != 0, "Key cannot be zero");
+        require(lifetime >= _minLifetime, "Lifetime should be greater or equal then minimal lifetime");
+        require(_remittances[hashedKey].sender == address(0), "Remittance exists");
         require(msg.value > 0, "Value should be greater 0 Wei");
 
-        _allowed[msg.sender][hashedKey] = _allowed[msg.sender][hashedKey].add(msg.value);
+        _remittances[hashedKey] = Remittance(
+            msg.sender,
+            msg.value,
+            block.timestamp.add(lifetime)
+        );
 
         emit LogRemitted(msg.sender, hashedKey, msg.value);
     }
 
-    function cancelRemittance(bytes32 hashedKey) public whenRunning whenAlive {
+    function cancelRemittance(bytes32 hashedKey) public whenRunning {
         require(hashedKey != 0, "Key cannot be zero");
+        require(!isOpen(hashedKey), "Remittance is open");
 
-        uint256 amount = _allowed[msg.sender][hashedKey];
+        uint256 amount = _remittances[hashedKey].amount;
         require(amount > 0, "Amount cannot be zero");
-        _allowed[msg.sender][hashedKey] = 0;
+        _remittances[hashedKey].amount = 0;
 
         emit LogCanceled(msg.sender, hashedKey, amount);
         msg.sender.transfer(amount);
@@ -47,14 +61,19 @@ contract Remittance is Pausable {
 
     function claim(address sender, bytes32 plainKey) public whenRunning {
         require(sender != address(0), "Sender cannot be empty");
-
         bytes32 hashedKey = generateSecret(msg.sender, plainKey);
-        uint256 amount = _allowed[sender][hashedKey];
+        require(isOpen(hashedKey), "Remittance is expired");
+
+        uint256 amount = _remittances[hashedKey].amount;
         require(amount > 0, "Amount cannot be zero");
 
-        _allowed[sender][hashedKey] = 0;
+        _remittances[hashedKey].amount = 0;
 
         emit LogClaimed(msg.sender, amount);
         msg.sender.transfer(amount);
+    }
+
+    function isOpen(bytes32 hashedKey) public view returns (bool) {
+        return block.timestamp <= _remittances[hashedKey].expiration;
     }
 }
