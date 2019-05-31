@@ -49,18 +49,19 @@ contract Remittance is Pausable {
 
     function cancelRemittance(bytes32 hashedKey) public whenRunning {
         require(hashedKey != 0, "Key cannot be zero");
+        require(_remittances[hashedKey].sender == msg.sender, "Only owner can calcel");
         require(!isOpen(hashedKey), "Remittance is open");
 
         uint256 amount = _remittances[hashedKey].amount;
         require(amount > 0, "Amount cannot be zero");
         _remittances[hashedKey].amount = 0;
+        _remittances[hashedKey].expiration = 0;
 
         emit LogCanceled(msg.sender, hashedKey, amount);
         msg.sender.transfer(amount);
     }
 
-    function claim(address sender, bytes32 plainKey) public whenRunning {
-        require(sender != address(0), "Sender cannot be empty");
+    function claim(bytes32 plainKey) public whenRunning {
         bytes32 hashedKey = generateSecret(msg.sender, plainKey);
         require(isOpen(hashedKey), "Remittance is expired");
 

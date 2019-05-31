@@ -98,14 +98,10 @@ contract('Remittance', accounts => {
     })
 
     describe('claim', function () {
-        it('reverts when sender is empty', async () => {
-            await expectRevert(remittance.claim(constants.ZERO_ADDRESS, '0x'), 'Sender cannot be empty');
-        });
-
         it('reverts when paused', async () => {
             remittance.pause();
 
-            await expectRevert(remittance.claim(accounts[1], '0x'), 'Paused');
+            await expectRevert(remittance.claim('0x'), 'Paused');
         });
 
         it('should claim', async () => {
@@ -114,7 +110,6 @@ contract('Remittance', accounts => {
             await remittance.createRemittance(secret, 100, { value: 10, from: accounts[0] });
 
             const { logs } = await remittance.claim(
-                accounts[0],
                 web3.utils.toHex(key),
                 { from: accounts[1] });
 
@@ -130,12 +125,10 @@ contract('Remittance', accounts => {
             await remittance.createRemittance(secret, 100, { value: 10, from: accounts[0] });
 
             await remittance.claim(
-                accounts[0],
                 web3.utils.toHex(key),
                 { from: accounts[2] });
 
             await expectRevert(remittance.claim(
-                accounts[0],
                 web3.utils.toHex(key),
                 { from: accounts[2] }), 'Amount cannot be zero');
         });
