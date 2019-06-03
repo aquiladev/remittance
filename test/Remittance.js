@@ -81,11 +81,28 @@ contract('Remittance', accounts => {
             await expectRevert(remittance.cancelRemittance('0x1'), 'Paused');
         });
 
-        it('should cancel', async () => {
+        it('should cancel when lifetime zero', async () => {
             const key = 'hi there';
             remittance = await Remittance.new(false, 0);
             const secret = await remittance.generateSecret(accounts[1], web3.utils.fromAscii(key));
             await remittance.createRemittance(secret, 0, { value: 10, from: accounts[0] });
+            await timeTravel(1);
+
+            const { logs } = await remittance.cancelRemittance(secret, { from: accounts[0] });
+
+            expectEvent.inLogs(logs, 'LogCanceled', {
+                sender: accounts[0],
+                puzzle: secret,
+                amount: new BN('10')
+            });
+        });
+
+        it('should cancel', async () => {
+            const key = 'hi there';
+            remittance = await Remittance.new(false, 100);
+            const secret = await remittance.generateSecret(accounts[1], web3.utils.fromAscii(key));
+            await remittance.createRemittance(secret, 100, { value: 10, from: accounts[0] });
+            await timeTravel(200);
 
             const { logs } = await remittance.cancelRemittance(secret, { from: accounts[0] });
 
@@ -133,4 +150,18 @@ contract('Remittance', accounts => {
                 { from: accounts[2] }), 'Amount cannot be zero');
         });
     });
+
+    const timeTravel = (time) => {
+        return new Promise((resolve, reject) => {
+            web3.currentProvider.send({
+                jsonrpc: "2.0",
+                method: "evm_increaseTime",
+                params: [time],
+                id: new Date().getTime()
+            }, (err, result) => {
+                if (err) { return reject(err) }
+                return resolve(result)
+            });
+        })
+    }
 });

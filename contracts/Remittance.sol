@@ -28,8 +28,8 @@ contract Remittance is Pausable {
         revert("Not supported");
     }
 
-    function generateSecret(address account, bytes32 plainKey) public view returns(bytes32) {
-        return keccak256(abi.encodePacked(address(this), account, plainKey));
+    function generateSecret(address receiver, bytes32 plainKey) public view returns(bytes32) {
+        return keccak256(abi.encodePacked(address(this), receiver, plainKey));
     }
 
     function createRemittance(bytes32 hashedKey, uint256 lifetime) public payable whenRunning {
